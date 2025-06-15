@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Translation {
+  // Campos principais
+  id        String   @id @default(cuid())
+  requestId String   @unique @default(uuid()) @db.Uuid
+  
+  text           String   @db.Text
+  translatedText String?  @db.Text
+  sourceLang     String   @db.VarChar(10)
+  targetLang     String   @db.VarChar(10)
+  
+  status         TranslationStatus @default(QUEUED)
+  
+  // Dados de erro (quando status = FAILED)
+  errorMessage String?   @db.Text
+  errorCode    String?   @db.VarChar(50)
+  retryCount   Int       @default(0)
+  
+  // Timestamps
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  queuedAt   DateTime @default(now())
+  
+  @@map("translations")
+}
+
+// Enums para garantir consistência de dados
+enum TranslationStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  
+  @@map("translation_status")
+}

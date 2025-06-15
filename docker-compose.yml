@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    container_name: translation-rabbitmq
+    ports:
+      - "5672:5672"      # AMQP port
+      - "15672:15672"    # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - translation-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres
+    container_name: translation-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: translation_db
+      POSTGRES_USER: translation_user
+      POSTGRES_PASSWORD: translation_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - translation-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U translation_user -d translation_db"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  # Translation API
+  translation-api:
+    build:
+      context: ./translations-api  # Ajuste o caminho conforme necessário
+      dockerfile: Dockerfile
+    container_name: translation-api
+    ports:
+      - "4040:4040"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://translation_user:translation_pass@postgres:5432/translation_db
+      RABBIT_MQ: amqp://admin:admin123@rabbitmq:5672
+      PORT: 4040
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - translation-network
+    command: bash -c "npx prisma migrate dev --name generate_tables && npx prisma migrate deploy && node src/swagger.js"
+       
+  # Translation Consumer/Worker
+  translation-consumer:
+    build:
+      context: ./translations-worker 
+      dockerfile: Dockerfile
+    container_name: translation-consumer
+    environment:
+      NODE_ENV: production
+      RABBIT_MQ: amqp://admin:admin123@rabbitmq:5672
+      MAX_RETRIES: 3
+      API_BASE_URL: http://translation-api:4040/api
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - translation-network
+    restart: unless-stopped
+    # Escalar consumers se necessário
+
+networks:
+  translation-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  redis_data:

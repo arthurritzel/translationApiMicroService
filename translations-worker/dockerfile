@@ -1,0 +1,22 @@
+# Use Node.js LTS oficial como base
+FROM node:22.16.0
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar package.json e package-lock.json (se existir)
+COPY package*.json ./
+
+# Instalar dependências
+RUN npm ci 
+
+# Copiar código fonte
+COPY src/ ./src/
+
+
+# Configurar variáveis de ambiente padrão
+ENV NODE_ENV=production
+ENV MAX_RETRIES=3
+
+# Comando para iniciar o consumer
+CMD ["node", "src/consumer.js"]

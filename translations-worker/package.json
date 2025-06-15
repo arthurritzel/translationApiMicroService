@@ -1,0 +1,15 @@
+{
+  "name": "node-boilerplate",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/consumer",
+    "start:watch": "node --watch src/consumer"
+  },
+  "dependencies": {
+    "@vitalets/google-translate-api": "^9.2.1",
+    "amqplib": "0.10.7",
+    "colors": "^1.4.0",
+    "dotenv": "16.4.7"
+  }
+}
